@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 
 import os
-import browser
+from selenium.webdriver.support.ui import Select
 
+import browser
 import event
 
 class ScheduleMaster(browser.Browser):
-    def __init__(self):
+    def __init__(self, headless = True):
         self.userid = os.environ['SM_USERID']
         self.password = os.environ['SM_PASSWORD']
         self.schedule = []
-        super().__init__("https://my.schedulemaster.com")
+        super().__init__("https://my.schedulemaster.com", headless = headless)
 
     def login(self):
         for form in self.driver.find_elements_by_tag_name('form'):
@@ -20,17 +21,39 @@ class ScheduleMaster(browser.Browser):
                 password = form.find_element_by_name('DATA')
                 password.send_keys(self.password)
                 form.submit()
+        # switch to iframe
+        self.driver.get(self.driver.find_element_by_id('asp_legacy').get_attribute('src'))
+        self.userid = self.driver.find_element_by_name('USERID').get_attribute('value')
+        self.session = self.driver.find_element_by_name('SESSION').get_attribute('value')
+        self.schedule = self.driver.find_element_by_id('res_table2')
+        self.username = self.schedule.find_element_by_class_name('InactiveLink').text.split(',')[0]
+
         
     def get_schedule(self):
         schedule = []
-        self.driver.get(self.driver.find_element_by_id('asp_legacy').get_attribute('src'))
-        table = self.driver.find_element_by_id('res_table2')
-        for button in table.find_elements_by_tag_name('button'):
+        for button in self.schedule.find_elements_by_tag_name('button'):
             attr = button.get_attribute('onMouseOver')
             if attr is not None:
                 schedule.append(event.Event().from_sm(attr))
-                # schedule.append(attr)
         return schedule
+
+    def store_event(self, event):
+        url = ['https://my.schedulemaster.com/schedlesson.aspx?WINDOW=YES']
+        url.append('N_NO={}'.format(self.username))
+        url.append('USERID={}'.format(self.userid))
+        url.append('SESSION={}'.format(self.session))
+        self.driver.get('&'.join(url))
+        self.fill_date('ctl00_CPL1_dt_StartDate2', 'ctl00_CPL1_ddl_StartTime2', event.start)
+        self.fill_date('ctl00_CPL1_dt_EndDate2', 'ctl00_CPL1_ddl_EndTime2', event.end)
+        self.driver.find_element_by_name('ctl00$CPL1$btnMakeSched').click()
+
+    def fill_date(self, id_date, id_time, value):
+        date = self.driver.find_element_by_id(id_date)
+        date.clear()
+        date.send_keys('{}/{}/{}'.format(value.month, value.day, value.year))
+        time = Select(self.driver.find_element_by_id(id_time))
+        time.select_by_index(value.hour * 2 + int(value.minute / 30))
+
 
 if __name__ == '__main__':
     driver = ScheduleMaster()

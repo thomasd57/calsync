@@ -4,6 +4,9 @@ from datetime import datetime
 
 class Event:
     fields = ('who', 'start', 'end', 'resource', 'comment', 'email', 'mobile', 'error')
+    def __init__(self):
+        for name in self.fields:
+            setattr(self, name, None)
 
     ''' Create event from Schedule Master string'''
     @classmethod
@@ -16,8 +19,6 @@ class Event:
         re_mobile = re.compile(r'[\d-]+')
         re_email = re.compile(r'[\w.-]+@[\w.-]+')
         event = cls()
-        for name in cls.fields:
-            setattr(event, name, None)
         try:
             event_string = re.sub(r'^ddrivetip\(\'', '', event_string)
             event_string = re.sub(r'\',\d+\);\s*$', '', event_string)
