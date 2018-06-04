@@ -10,3 +10,6 @@ class Browser:
         self.driver.implicitly_wait(10)
         if url is not None:
             self.driver.get(url)
+
+    def get_html(self):
+        return self.driver.page_source
