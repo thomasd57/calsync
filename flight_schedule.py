@@ -2,11 +2,17 @@
 
 import os
 from selenium.webdriver.support.ui import Select
+from bs4 import BeautifulSoup
 
 import browser
-import event
+from event import Event
+
+import pdb
 
 class FlightSchedule(browser.Browser):
+    attr_table = { 'reservation | reservationListResourceDisplayFilter' : 'resource',
+                   'reservation | reservationListCustomerDisplayFilter:operator' : 'customer',
+                }
     def __init__(self, headless = True):
         self.userid = os.environ['FS_USERID']
         self.password = os.environ['FS_PASSWORD']
@@ -23,9 +29,33 @@ class FlightSchedule(browser.Browser):
         submit = self.driver.find_element_by_tag_name('button')
         submit.click()
         self.logger.info('login successful')
+        time.sleep(3)
 
     def get_schedule(self):
         self.driver.get('https://app.flightschedulepro.com/App/Reservations/')
+        time.sleep(5)
+        events = []
+        soup = BeautifulSoup(self.get_html(), 'html.parser')
+        table = soup.find('table').find('tbody')
+        for row in table.find_all('tr'):
+            event = Event()
+            for cell in row.find_all('td'):
+                for times in cell.find_all('time'):
+                    try:
+                        event.push_time(times['datetime'])
+                    except KeyError:
+                        pass
+                try:
+                    attr = self.attr_table[cell['ng-bind-html']]
+                    if cell.string:
+                        value = [cell.string]
+                    else:
+                        value = list(cell.strings)
+                    setattr(event, attr, value)
+                except KeyError:
+                    pass
+            events.append(event)
+        return events
 
 if __name__ == '__main__':
     import time
@@ -43,13 +73,10 @@ if __name__ == '__main__':
         events = json.load(open(args.event))
     driver = FlightSchedule(not args.view)
     driver.login()
-    time.sleep(10)
-    with open('reservations.html', 'w') as fp:
-        fp.write(driver.get_html())
 
     #for event in events:
     #    driver.store_event(event)
-    #for event in driver.get_schedule():
-    #    print(event, '\n')
+    for event in driver.get_schedule():
+        print(event, '\n')
     if not args.view:
         driver.driver.close()

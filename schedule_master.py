@@ -4,7 +4,7 @@ import os
 from selenium.webdriver.support.ui import Select
 
 import browser
-import event
+import sm_event
 
 class ScheduleMaster(browser.Browser):
     def __init__(self, headless = True):
@@ -36,7 +36,7 @@ class ScheduleMaster(browser.Browser):
         for button in self.schedule.find_elements_by_tag_name('button'):
             attr = button.get_attribute('onMouseOver')
             if attr is not None:
-                schedule.append(event.Event().from_sm(attr))
+                schedule.append(sm_event.SMEvent().from_sm(attr))
         self.logger.info('fetched current schedule')
         return schedule
 
